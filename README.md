@@ -33,8 +33,17 @@ langs ~/my-app   # another folder
 - Counts by file size (bytes), the same way GitHub does.
 - In a git repo it respects `.gitignore`. Outside one it skips `node_modules`, `dist`, `build`, `Pods` and similar folders.
 - Skips `.min.js`/`.min.css` and data or prose files such as JSON and Markdown.
-- Detects the language from the file extension (26 languages). To add one, add a line to the `BEGIN` block in `langs`:
-  `L["scala"] = "Scala|194;45;64"`
+- Detects the language from the file extension or filename (e.g. `Makefile`, `Dockerfile`), using GitHub
+  linguist's list: 530+ languages with GitHub's names and colors. Related languages are grouped as on GitHub
+  (e.g. `.tsx` counts as TypeScript).
+- Where an extension is shared (`.h` = C/C++/Objective-C), GitHub reads the file contents; `langs` picks the
+  most common language, so those files may be labelled differently.
+
+## Updating the language list
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/github-linguist/linguist/main/lib/linguist/languages.yml | ruby gen-languages.rb
+```
 
 ## Uninstall
 
