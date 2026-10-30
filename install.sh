@@ -10,6 +10,7 @@ trap 'rm -f "$tmp"' EXIT
 curl -fsSL "$URL" -o "$tmp"
 chmod 755 "$tmp"
 
+mkdir -p "$DIR" 2>/dev/null || true
 if [ -w "$DIR" ]; then SUDO=""; else SUDO="sudo"; echo "Installing to $DIR (needs your password)..."; fi
 $SUDO mkdir -p "$DIR"
 $SUDO mv "$tmp" "$DIR/langs"
