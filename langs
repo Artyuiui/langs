@@ -1,0 +1,52 @@
+#!/bin/bash
+# langs — GitHub-style language breakdown (by bytes) of a project. Usage: langs [dir]
+cd "${1:-.}" || exit 1
+
+if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  files() { git ls-files -z --cached --others --exclude-standard; }   # respects .gitignore like GitHub
+else
+  files() { find . -type d \( -name node_modules -o -name .git -o -name dist -o -name build -o -name .build \
+    -o -name Pods -o -name vendor -o -name .next -o -name DerivedData \) -prune -o -type f -print0; }
+fi
+
+files | xargs -0 stat -f '%z %N' 2>/dev/null | awk '
+BEGIN {
+  # ext -> "Language|R;G;B" (GitHub linguist colors). Data/prose (json, md, ...) is ignored, as on GitHub.
+  split("js mjs cjs jsx", a); for (i in a) L[a[i]] = "JavaScript|241;224;90"
+  split("ts tsx mts cts", a); for (i in a) L[a[i]] = "TypeScript|49;120;198"
+  L["html"] = L["htm"] = "HTML|227;76;38"
+  L["css"] = "CSS|86;61;124"; L["scss"] = "SCSS|198;83;140"; L["sass"] = "Sass|165;59;112"
+  L["swift"] = "Swift|240;81;56"; L["m"] = "Objective-C|67;142;255"
+  L["py"] = "Python|53;114;165"; L["java"] = "Java|176;114;25"
+  L["kt"] = L["kts"] = "Kotlin|169;123;255"; L["go"] = "Go|0;173;216"; L["rs"] = "Rust|222;165;132"
+  L["rb"] = "Ruby|112;21;22"; L["php"] = "PHP|79;93;149"; L["dart"] = "Dart|0;180;171"
+  L["c"] = L["h"] = "C|85;85;85"; split("cpp cc cxx hpp hh", a); for (i in a) L[a[i]] = "C++|243;75;125"
+  L["cs"] = "C#|23;134;0"; L["sh"] = L["bash"] = L["zsh"] = "Shell|137;224;81"
+  L["vue"] = "Vue|65;184;131"; L["svelte"] = "Svelte|255;62;0"; L["lua"] = "Lua|0;0;128"
+  L["sql"] = "SQL|227;140;0"; L["r"] = "R|25;140;231"; L["ex"] = L["exs"] = "Elixir|110;74;126"
+}
+{
+  size = $1; name = $0; sub(/^[0-9]+ /, "", name)
+  if (name ~ /\.min\.(js|css)$/) next
+  n = split(name, p, "."); if (n < 2) next
+  ext = tolower(p[n]); if (!(ext in L)) next
+  bytes[L[ext]] += size; total += size
+}
+END {
+  if (!total) { print "No source files found." > "/dev/stderr"; exit 1 }
+  for (k in bytes) printf "%d|%s|%.6f\n", bytes[k], k, bytes[k] * 100 / total
+}' | sort -t'|' -k1,1 -rn | awk -F'|' '
+{ lang[NR] = $2; rgb[NR] = $3; pct[NR] = $4 }
+END {
+  if (!NR) exit 1
+  W = 50; bar = ""
+  for (i = 1; i <= NR; i++) {
+    w = int(pct[i] * W / 100 + 0.5); if (w < 1) w = 1
+    seg = ""; for (j = 0; j < w; j++) seg = seg "█"
+    bar = bar "\033[38;2;" rgb[i] "m" seg
+  }
+  print "\n  \033[1mLanguages\033[0m\n\n  " bar "\033[0m\n"
+  for (i = 1; i <= NR; i++)
+    printf "  \033[38;2;%sm●\033[0m \033[1m%-12s\033[0m %5.1f%%\n", rgb[i], lang[i], pct[i]
+  print ""
+}'
